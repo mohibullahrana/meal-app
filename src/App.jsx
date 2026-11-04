@@ -3,7 +3,7 @@ import {
   Users, Calendar, Clock, Shield, LogOut, Check, X, RefreshCw, 
   Search, Settings, UserPlus, Key, AlertCircle, ChevronLeft, 
   ChevronRight, Edit3, Trash2, ShieldAlert, CheckCircle, Info, Lock, Sun, Moon,
-  Utensils, ClipboardList, Plus, Minus
+  Utensils, ClipboardList, Plus, Minus, Eye, EyeOff
 } from 'lucide-react';
 import * as db from './db';
 
@@ -262,6 +262,7 @@ export default function App() {
 function LoginPortal({ onLoginSuccess }) {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -321,14 +322,25 @@ function LoginPortal({ onLoginSuccess }) {
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
               Password
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-4 py-3 text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-4 pr-12 py-3 text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 transition"
+                title={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
 
           <button
@@ -1080,6 +1092,34 @@ function AdminPortal({ currentUser, dbTick, notifyDbUpdate, showNotify }) {
     };
   }, [usersList, allMeals, allGuestMeals, overviewDate]);
 
+  // Per-user meal list for the selected overview date
+  const userMealRows = useMemo(() => {
+    const mealMap = {};
+    allMeals.forEach(m => {
+      if (m.date === overviewDate) mealMap[`${m.userId}|${m.mealType}`] = m.selection;
+    });
+    const guestMap = {};
+    allGuestMeals.forEach(g => {
+      if (g.date === overviewDate) {
+        const k = `${g.userId}|${g.mealType}`;
+        guestMap[k] = (guestMap[k] || 0) + g.quantity;
+      }
+    });
+    return usersList
+      .filter(u => u.role === 'user' && u.status === 'active')
+      .map(u => ({
+        id: u.id,
+        fullName: u.fullName,
+        userId: u.userId,
+        flatNumber: u.flatNumber,
+        lunch: mealMap[`${u.userId}|Lunch`] || null,
+        dinner: mealMap[`${u.userId}|Dinner`] || null,
+        guestLunch: guestMap[`${u.userId}|Lunch`] || 0,
+        guestDinner: guestMap[`${u.userId}|Dinner`] || 0,
+      }))
+      .sort((a, b) => String(a.flatNumber).localeCompare(String(b.flatNumber), undefined, { numeric: true }));
+  }, [usersList, allMeals, allGuestMeals, overviewDate]);
+
   // ----- User Summary (read-only monthly view) -----
   const userOptions = usersList.filter(u => u.role === 'user');
   const summaryUser = userOptions.find(u => u.userId === summaryUserId) || userOptions[0] || null;
@@ -1353,52 +1393,96 @@ function AdminPortal({ currentUser, dbTick, notifyDbUpdate, showNotify }) {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Active Users</span>
-              <span className="text-3xl font-extrabold text-slate-800">{stats.totalActive}</span>
+          {/* 3 summary boxes */}
+          <div className="grid grid-cols-3 lg:grid-cols-[1fr_2fr_2fr] gap-3 sm:gap-4">
+            {/* Active users (compact) */}
+            <div className="bg-white px-3 py-2.5 rounded-xl border border-slate-200/80 shadow-xs self-start">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Active Users</span>
+              <span className="text-xl font-extrabold text-slate-800">{stats.totalActive}</span>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+            {/* Lunch ON  -> "25+3" when guests exist */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
               <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block mb-1">Lunch ON</span>
-              <span className="text-3xl font-extrabold text-emerald-600">{stats.lunchOn}</span>
+              <span className="text-3xl font-extrabold text-emerald-600">
+                {stats.lunchOn}{stats.guestLunch > 0 && `+${stats.guestLunch}`}
+              </span>
+              <div className="flex flex-wrap gap-x-3 mt-1 text-[11px] font-bold">
+                <span className="text-rose-500">Off: {stats.lunchOff}</span>
+                {stats.guestLunch > 0 && (
+                  <span className="text-emerald-600">Guest meal +{stats.guestLunch}</span>
+                )}
+              </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-rose-500 uppercase tracking-wider block mb-1">Lunch OFF</span>
-              <span className="text-3xl font-extrabold text-rose-500">{stats.lunchOff}</span>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+            {/* Dinner ON */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
               <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block mb-1">Dinner ON</span>
-              <span className="text-3xl font-extrabold text-emerald-600">{stats.dinnerOn}</span>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-              <span className="text-xs font-bold text-rose-500 uppercase tracking-wider block mb-1">Dinner OFF</span>
-              <span className="text-3xl font-extrabold text-rose-500">{stats.dinnerOff}</span>
+              <span className="text-3xl font-extrabold text-emerald-600">
+                {stats.dinnerOn}{stats.guestDinner > 0 && `+${stats.guestDinner}`}
+              </span>
+              <div className="flex flex-wrap gap-x-3 mt-1 text-[11px] font-bold">
+                <span className="text-rose-500">Off: {stats.dinnerOff}</span>
+                {stats.guestDinner > 0 && (
+                  <span className="text-emerald-600">Guest meal +{stats.guestDinner}</span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Guest meals + total meals to prepare for the selected date */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl border border-violet-300 bg-violet-50">
-              <span className="text-xs font-bold text-violet-700 uppercase tracking-wider block mb-1">Guest Lunch</span>
-              <span className="text-3xl font-extrabold text-violet-700">{stats.guestLunch}</span>
+          {/* Per-user meal details for the selected date */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-800">Meal Details by User</h3>
+              <p className="text-xs text-slate-500">{formatDateLong(overviewDate)}</p>
             </div>
-            <div className="p-5 rounded-2xl border border-violet-300 bg-violet-50">
-              <span className="text-xs font-bold text-violet-700 uppercase tracking-wider block mb-1">Guest Dinner</span>
-              <span className="text-3xl font-extrabold text-violet-700">{stats.guestDinner}</span>
-            </div>
-            <div className="p-5 rounded-2xl bg-slate-900 text-white">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1">Total Lunch</span>
-              <span className="text-3xl font-extrabold">{stats.lunchOn + stats.guestLunch}</span>
-              <span className="text-[10px] text-slate-400 block">ON + guests</span>
-            </div>
-            <div className="p-5 rounded-2xl bg-slate-900 text-white">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-1">Total Dinner</span>
-              <span className="text-3xl font-extrabold">{stats.dinnerOn + stats.guestDinner}</span>
-              <span className="text-[10px] text-slate-400 block">ON + guests</span>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                    <th className="text-left px-4 py-2 font-bold">User</th>
+                    <th className="text-center px-3 py-2 font-bold">Lunch</th>
+                    <th className="text-center px-3 py-2 font-bold">Guest Lunch</th>
+                    <th className="text-center px-3 py-2 font-bold">Dinner</th>
+                    <th className="text-center px-3 py-2 font-bold">Guest Dinner</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {userMealRows.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="text-center text-xs text-slate-400 py-6">No active users.</td>
+                    </tr>
+                  )}
+                  {userMealRows.map(r => {
+                    const badge = (v) =>
+                      v === 'ON' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">ON</span>
+                      ) : v === 'OFF' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200">OFF</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Not set</span>
+                      );
+                    const guest = (n) =>
+                      n > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-violet-50 text-violet-700 border border-violet-200">+{n}</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      );
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-2.5">
+                          <div className="font-bold text-slate-800">{r.fullName}</div>
+                          <div className="text-[11px] text-slate-500">Flat {r.flatNumber} • {r.userId}</div>
+                        </td>
+                        <td className="text-center px-3 py-2.5">{badge(r.lunch)}</td>
+                        <td className="text-center px-3 py-2.5">{guest(r.guestLunch)}</td>
+                        <td className="text-center px-3 py-2.5">{badge(r.dinner)}</td>
+                        <td className="text-center px-3 py-2.5">{guest(r.guestDinner)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
