@@ -30,6 +30,15 @@ const getBSTYMD = (date = new Date()) => {
   return bstStr; // Returns YYYY-MM-DD
 };
 
+// Last selectable date for users: end of NEXT month (BST), as YYYY-MM-DD
+const getMaxSelectableYMD = () => {
+  const [y, m] = getBSTYMD().split('-').map(Number); // m = current month (1-12)
+  const last = new Date(y, m + 1, 0); // day 0 of the month after next = last day of next month
+  const mm = String(last.getMonth() + 1).padStart(2, '0');
+  const dd = String(last.getDate()).padStart(2, '0');
+  return `${last.getFullYear()}-${mm}-${dd}`;
+};
+
 // Check if meal toggle is locked for current user at current BST time
 const isMealLocked = (mealDateYMD, mealType, settings) => {
   const nowBST = getBSTDateObj();
@@ -53,11 +62,8 @@ const isMealLocked = (mealDateYMD, mealType, settings) => {
     if (nowBST > deadlineDate) return true;
   }
 
-  // Window restriction check (Must be within 30 days window)
-  const maxWindow = new Date();
-  maxWindow.setDate(maxWindow.getDate() + (settings?.selectionWindowDays || 30));
-  const targetDate = new Date(mYear, mMonth - 1, mDay);
-  if (targetDate > maxWindow) return true;
+  // Only the current month and the next month can be selected
+  if (mealDateYMD > getMaxSelectableYMD()) return true;
 
   return false;
 };
@@ -492,20 +498,18 @@ function UserPortal({ currentUser, dbTick, notifyDbUpdate, showNotify }) {
     return days;
   }, [currentMonthDate]);
 
-  // Month navigation restriction (Prev 2 months, current, next 1 month)
+  // Month navigation restriction: current month and next month only
   const navigateMonth = (direction) => {
-    const newDate = new Date(currentMonthDate);
-    newDate.setMonth(newDate.getMonth() + direction);
-    
-    // Bounds check
+    const newDate = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + direction, 1);
+
     const now = new Date();
-    const minMonth = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const minMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const maxMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
     if (newDate >= minMonth && newDate <= maxMonth) {
       setCurrentMonthDate(newDate);
     } else {
-      showNotify('Month navigation limited to 2 previous months and 1 future month.', 'info');
+      showNotify('You can select meals for the current month and the next month only.', 'info');
     }
   };
 
@@ -759,7 +763,7 @@ function UserPortal({ currentUser, dbTick, notifyDbUpdate, showNotify }) {
                 type="date"
                 value={guestDate}
                 min={getBSTYMD()}
-                max={shiftYMD(getBSTYMD(), settings?.selectionWindowDays || 30)}
+                max={getMaxSelectableYMD()}
                 onChange={(e) => setGuestDate(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500"
               />
