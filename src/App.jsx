@@ -159,7 +159,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased selection:bg-emerald-100 selection:text-emerald-800">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans antialiased selection:bg-emerald-100 selection:text-emerald-800">
       {/* Top Banner Navigation & Quick Demo Controls */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -216,7 +216,7 @@ export default function App() {
       )}
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {viewMode === 'login' && (
           <LoginPortal 
             onLoginSuccess={(user) => {
@@ -245,6 +245,13 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200/80 bg-white/70 py-4 text-center">
+        <p className="text-xs font-medium text-slate-500">
+          Meal Hisab 2026. Developed by <span className="font-bold text-slate-700">Mhb Rana</span>
+        </p>
+      </footer>
     </div>
   );
 }
