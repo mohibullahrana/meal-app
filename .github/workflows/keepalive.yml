@@ -1,0 +1,16 @@
+# Pings Supabase every 3 days so the free project is not paused for inactivity
+name: Supabase Keepalive
+
+on:
+  schedule:
+    - cron: '0 3 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -fsS "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/settings?select=id&limit=1" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}"
