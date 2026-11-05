@@ -1066,16 +1066,16 @@ function AdminPortal({ currentUser, dbTick, notifyDbUpdate, showNotify }) {
       else guestDinner += g.quantity;
     });
 
-    todayMeals.forEach(m => {
-      answeredUsers.add(m.userId);
-      if (m.mealType === 'Lunch') {
-        if (m.selection === 'ON') lunchOn++;
-        else lunchOff++;
-      }
-      if (m.mealType === 'Dinner') {
-        if (m.selection === 'ON') dinnerOn++;
-        else dinnerOff++;
-      }
+    todayMeals.forEach(m => answeredUsers.add(m.userId));
+
+    // Every active user counts: not selected = OFF (default)
+    const selMap = {};
+    todayMeals.forEach(m => { selMap[`${m.userId}|${m.mealType}`] = m.selection; });
+    activeUsers.forEach(u => {
+      if (selMap[`${u.userId}|Lunch`] === 'ON') lunchOn++;
+      else lunchOff++;
+      if (selMap[`${u.userId}|Dinner`] === 'ON') dinnerOn++;
+      else dinnerOff++;
     });
 
     const pendingCount = activeUsers.length - answeredUsers.size;
@@ -1460,7 +1460,7 @@ function AdminPortal({ currentUser, dbTick, notifyDbUpdate, showNotify }) {
                       ) : v === 'OFF' ? (
                         <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 border border-rose-200">OFF</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Not set</span>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-500 border border-rose-200 border-dashed" title="Not selected - counted as OFF">OFF <span className="font-medium opacity-70">(default)</span></span>
                       );
                     const guest = (n) =>
                       n > 0 ? (
